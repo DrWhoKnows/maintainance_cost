@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<diff>
+
+  <!-- ware ratio of navbeacon is almost perfect for repair ware allocation, except for ter, change it. should not have a big impact on economy since navbeacon is mostly irrelevant -->
+  <replace sel="/wares/ware[@id='waypointmarker_01']/production[@method='terran']/primary">
+    <primary>
+      <ware ware="energycells" amount="1" />
+      <ware ware="metallicmicrolattice" amount="10" />
+    </primary>
+  </replace>
+
+</diff>

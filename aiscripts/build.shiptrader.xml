@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<diff>
+
+  <add sel="//debug_text[@text=&quot;&apos;received signal to repair %s %s %s to %s. %s components to repair&apos;.[$locship.idcode, $locship.knownname, $locship, $lochullpercent, @$locdamagedcomponents.count]&quot;]" pos="after">
+    <do_if value="@player.entity.$maintainancecost_states and @player.entity.$maintainancecost_states.{$locship}">
+      <!-- request state update -->
+      <signal_objects object="$locship" param="'MtCst_PutState'" />
+      <!-- get state from global table -->
+      <set_value name="$locship_MtCst_state" exact="player.entity.$maintainancecost_states.{$locship}.{1}" />
+      <set_value name="$locship_MtCst_maxhp" exact="player.entity.$maintainancecost_states.{$locship}.{2}" />
+      <!-- check maintainance cost -->
+      <set_value name="$MCGSC_ship" exact="$locship" />
+      <include_interrupt_actions ref="MaintainanceCostGetShipCost"/>
+      <set_value name="$MCGMC_shipcost" exact="$MCGSC_result" />
+      <remove_value name="$MCGSC_result" />
+      <remove_value name="$MCGSC_ship" />
+      <set_value name="$MCGMC_state" exact="$locship_MtCst_state" />
+      <include_interrupt_actions ref="MaintainanceCostGetMaintainanceCost"/>
+      <set_value name="$maintainancecosttable" exact="$MCGMC_result" />
+      <remove_value name="$MCGMC_state" />
+      <remove_value name="$MCGMC_result" />
+      <remove_value name="$MCGMC_shipcost" />
+      <!-- do maintainance if possible -->
+      <include_interrupt_actions ref="MaintainanceCostDoMaintainance" />
+      <!-- allow for repairing to 100%. it still gradually looses health if bad maintainance -->
+      <!-- <set_value name="$lochullpercent" exact="[$lochullpercent, $locship_MtCst_maxhp].min" /> -->
+    </do_if>
+    <!-- check repair cost -->
+    <include_interrupt_actions ref="MaintainanceCostGetRepairCost"/>
+    <set_value name="$repaircosttable" exact="$MCGRC_result" />
+    <remove_value name="$MCGRC_result" />
+    <!-- check what we have and clamp repair amount and consume cost -->
+    <include_interrupt_actions ref="MaintainanceCostApplyRepairCost" />
+    <set_value name="$lochullpercent" exact="$MCARC_result" />
+    <remove_value name="$repaircosttable" />
+    <remove_value name="$MCARC_result" />
+  </add>
+
+</diff>

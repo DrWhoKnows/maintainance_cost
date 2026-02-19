@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content id="maintainance_cost" name="Maintainance Cost" description="Make ships have running cost." date="2026-03-30" version="001" save="false" author="DrWhoKnows">
+  <dependency id="ws_2042901274" optional="false" name="SirNukes Mod Support APIs"/>
+  <dependency id="kuerteeUIExtensionsAndHUD" optional="true" name="kuertee UI Extensions and HUD"/>
+  <text language="44" name="Maintainance Cost" description="Make ships have running cost." author="DrWhoKnows"/>
+  <text language="86" name="维护费" description="给飞船添加维护费。" author="DrWhoKnows"/>
+</content>

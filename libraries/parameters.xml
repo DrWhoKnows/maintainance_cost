@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diff>
+
+  <!-- change ware allocation of equipmentdock and supply ships to reflect maintainance cost:
+    repair cost       - Ecell + hullparts/metallicmicrolattice/ore
+                      - fill with navbeacon 
+    maintainance cost - Ecell + hullparts.engincomponents.amcoverters/mircolattice.substra.sic/hullparts.claytronics -->
+
+  <replace sel="//parameters/equipmentdockupgraderesources">
+    <equipmentdockupgraderesources>
+      <!-- since these stations typically serve large and small ships alike, their storage focus for surface elements and drones is between wharf and shipyard -->
+      <factor countermeasure="120" drone="200" engine="10" missile="600" mine="200" satellite="60" navbeacon="30" resourceprobe="60" lasertower="150" scanner="20" shield="20" thruster="1" turret="40" weapon="10" />
+    </equipmentdockupgraderesources>
+  </replace>
+
+  <replace sel="//parameters/shipupgraderesources">
+    <shipupgraderesources>
+      <!-- all ships use countermeasures,
+            some ships use drones,
+            not all ships use missiles, but those that do need lots of them.
+            deployables are very situational. don't stock up on a lot of them for general use. -->
+      <factor countermeasure="20" drone="120" missile="150" mine="5" satellite="4" navbeacon="400" resourceprobe="0" lasertower="4" scanner="0" engine="0" shield="0" thruster="0" turret="0" weapon="0"/>
+    </shipupgraderesources>
+  </replace>
+
+
+</diff>

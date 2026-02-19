@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<diff>
+
+  <add sel="//interrupts">
+    <handler ref="MaintainanceCostHitBreak" />
+    <handler ref="MaintainanceCostSetState" />
+    <handler ref="MaintainanceCostPutState" />
+  </add>
+
+
+  <add sel="//init">
+    <set_value name="$MtCst_enabled" exact="this.defensible.isclass.[class.ship_s, class.ship_m, class.ship_l, class.ship_xl] and not this.defensible.isunit and this.defensible.trueowner != faction.xenon and this.defensible.trueowner != faction.khaak" />
+    <set_value name="$MtCst_nexthitcheck" exact="player.age" />
+    <do_if value="$MtCst_enabled">
+      <set_value name="$MtCst_nextbreakcheck" exact="player.age" />
+      <set_value name="$MtCst_nextbreakapply" exact="player.age" />
+      <set_value name="$MtCst_locstate" exact="1i" />
+    </do_if>
+  </add>
+
+
+  <add sel="//attention[@min='unkown']/actions/label[@name='checkforrepair']" pos="after">
+    <include_interrupt_actions ref="MaintainanceCostRegisterShip"/>
+  </add>  
+
+
+  <add sel="//attention[@min='unkown']/actions/do_if[@value='player.age le @this.$hacked']" pos="before">
+    <include_interrupt_actions ref="MaintainanceCostBreakCheck"/>
+    <include_interrupt_actions ref="MaintainanceCostBreakApply"/>
+  </add>
+
+</diff>

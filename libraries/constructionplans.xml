@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plans>
+  <plan id="maintainanceCost_dummybuilder" >
+    <entry index="1" macro="buildmodule_gen_ships_m_dockarea_01_macro">
+      <offset>
+        <position y="5.208"/>
+        <rotation yaw="-89.99998"/>
+      </offset>
+    </entry>
+    <entry index="2" macro="buildmodule_gen_ships_l_macro" connection="connectionsnap001">
+      <predecessor index="1" connection="connectionsnap003"/>
+      <offset>
+        <position x="1200" y="5.208" z="-0.0003783"/>
+        <rotation yaw="-179.99997"/>
+      </offset>
+    </entry>
+    <entry index="3" macro="buildmodule_gen_ships_xl_macro" connection="connectionsnap001">
+      <predecessor index="1" connection="connectionsnap004"/>
+      <offset>
+        <position x="-2200" y="5.208" z="0.0001701"/>
+      </offset>
+    </entry>
+  </plan>
+</plans>
