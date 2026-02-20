@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<diff>
+
+  <!-- enable engineer script on S ships -->
+  <add sel="//dataset[@class='ship_s']/connections">
+    <connection name="engineernpc" tags="engineer" value="-1" match="all" />
+  </add>
+
+</diff>
