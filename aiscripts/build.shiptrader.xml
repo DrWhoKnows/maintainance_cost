@@ -9,21 +9,23 @@
       <set_value name="$locship_MtCst_state" exact="player.entity.$maintainancecost_states.{$locship}.{1}" />
       <set_value name="$locship_MtCst_maxhp" exact="player.entity.$maintainancecost_states.{$locship}.{2}" />
       <!-- check maintainance cost -->
-      <set_value name="$MCGSC_ship" exact="$locship" />
-      <include_interrupt_actions ref="MaintainanceCostGetShipCost"/>
-      <set_value name="$MCGMC_shipcost" exact="$MCGSC_result" />
-      <remove_value name="$MCGSC_result" />
-      <remove_value name="$MCGSC_ship" />
-      <set_value name="$MCGMC_state" exact="$locship_MtCst_state" />
-      <include_interrupt_actions ref="MaintainanceCostGetMaintainanceCost"/>
-      <set_value name="$maintainancecosttable" exact="$MCGMC_result" />
-      <remove_value name="$MCGMC_state" />
-      <remove_value name="$MCGMC_result" />
-      <remove_value name="$MCGMC_shipcost" />
-      <!-- do maintainance if possible -->
-      <include_interrupt_actions ref="MaintainanceCostDoMaintainance" />
-      <!-- allow for repairing to 100%. it still gradually looses health if bad maintainance -->
-      <!-- <set_value name="$lochullpercent" exact="[$lochullpercent, $locship_MtCst_maxhp].min" /> -->
+      <do_if value="$locship_MtCst_state gt 1">
+        <set_value name="$MCGSC_ship" exact="$locship" />
+        <include_interrupt_actions ref="MaintainanceCostGetShipCost"/>
+        <set_value name="$MCGMC_shipcost" exact="$MCGSC_result" />
+        <remove_value name="$MCGSC_result" />
+        <remove_value name="$MCGSC_ship" />
+        <set_value name="$MCGMC_state" exact="$locship_MtCst_state" />
+        <include_interrupt_actions ref="MaintainanceCostGetMaintainanceCost"/>
+        <set_value name="$maintainancecosttable" exact="$MCGMC_result" />
+        <remove_value name="$MCGMC_state" />
+        <remove_value name="$MCGMC_result" />
+        <remove_value name="$MCGMC_shipcost" />
+        <!-- do maintainance if possible -->
+        <include_interrupt_actions ref="MaintainanceCostDoMaintainance" />
+        <!-- allow for repairing to 100%. it still gradually looses health if bad maintainance -->
+        <!-- <set_value name="$lochullpercent" exact="[$lochullpercent, $locship_MtCst_maxhp].min" /> -->
+      </do_if>
     </do_if>
     <!-- check repair cost -->
     <include_interrupt_actions ref="MaintainanceCostGetRepairCost"/>

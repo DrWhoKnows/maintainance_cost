@@ -10,23 +10,36 @@
 
   <add sel="//init">
     <set_value name="$MtCst_enabled" exact="this.defensible.isclass.[class.ship_s, class.ship_m, class.ship_l, class.ship_xl] and not this.defensible.isunit and this.defensible.trueowner != faction.xenon and this.defensible.trueowner != faction.khaak" />
-    <set_value name="$MtCst_nexthitcheck" exact="player.age" />
+    <set_value name="$MtCst_nexthitcheck" min="player.age + 5s" max="player.age + 10s" />
     <do_if value="$MtCst_enabled">
-      <set_value name="$MtCst_nextbreakcheck" exact="player.age" />
-      <set_value name="$MtCst_nextbreakapply" exact="player.age" />
+      <set_value name="$MtCst_nextbreakcheck" min="player.age + 10min" max="player.age + 20min" />
+      <set_value name="$MtCst_nextbreakapply" min="player.age + 1min" max="player.age + 3min"  />
       <set_value name="$MtCst_locstate" exact="1i" />
+      <set_value name="$MtCst_maxhp" exact="100" />
+      <do_if value="@global.$maintainancecost_allships and not global.$maintainancecost_allships.{this.defensible}?">
+          <add_to_group groupname="global.$maintainancecost_allships" object="this.defensible" />
+        </do_if>
+        <do_if value="@player.entity.$maintainancecost_states">
+          <set_value name="player.entity.$maintainancecost_states.{this.defensible}" exact="[$MtCst_locstate, $MtCst_maxhp]" />
+        </do_if>
     </do_if>
+    <debug_text text="'==MaintainanceCost== maintainance initialized on %s %s with %s and state %s.'.[this.defensible.idcode, this.defensible.knownname, $MtCst_enabled, @$MtCst_locstate]" filter="scripts" chance="global.$maintainancecost_debug" />
   </add>
 
 
-  <add sel="//attention[@min='unkown']/actions/label[@name='checkforrepair']" pos="after">
+  <add sel="//attention[@min='unknown']/actions/label[@name='checkforrepair']" pos="after">
     <include_interrupt_actions ref="MaintainanceCostRegisterShip"/>
   </add>  
 
 
-  <add sel="//attention[@min='unkown']/actions/do_if[@value='player.age le @this.$hacked']" pos="before">
+  <add sel="//attention[@min='unknown']/actions/do_if[@value='player.age le @this.$hacked']" pos="before">
     <include_interrupt_actions ref="MaintainanceCostBreakCheck"/>
     <include_interrupt_actions ref="MaintainanceCostBreakApply"/>
+    <!-- we enabled engineer for S ships (vanilla disabled) for maintainance check. prevent ship from self repair to mimic orginal behavior -->
+    <do_if value="this.defensible.isclass.ship_s" >
+      <wait min="1min" max="2min" />
+      <resume label="checkforrepair"/>
+    </do_if>
   </add>
 
 </diff>

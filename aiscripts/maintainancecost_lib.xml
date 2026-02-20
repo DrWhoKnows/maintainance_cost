@@ -324,7 +324,7 @@
           <remove_cargo object="this.object" ware="$w" exact="$MCDM_ware2use.{$w}" />
         </do_for_each>
         <signal_objects object="$locship" param="'MtCst_SetState'" param2="'set'" param3="1" />
-        <set_value name="$locship_MtCst_state" exact="1" />
+        <set_value name="$locship_MtCst_state" exact="1i" />
         <set_value name="$locship_MtCst_maxhp" exact="100" />
       </do_if>
       <do_else>
@@ -336,29 +336,19 @@
     <actions name="MaintainanceCostRegisterShip">
       <set_value name="$MtCst_enabled" exact="this.defensible.isclass.[class.ship_s, class.ship_m, class.ship_l, class.ship_xl] and not this.defensible.isunit and this.defensible.trueowner != faction.xenon and this.defensible.trueowner != faction.khaak" />
       <do_if value="not $MtCst_nextbreakhitcheck?">
-        <set_value name="$MtCst_nexthitcheck" exact="player.age" />
+        <set_value name="$MtCst_nexthitcheck" min="player.age + 5s" max="player.age + 10s" />
       </do_if>
       <do_if value="$MtCst_enabled">
         <do_if value="not $MtCst_nextbreakcheck?">
-          <set_value name="$MtCst_nextbreakcheck" exact="player.age" />
+          <set_value name="$MtCst_nextbreakcheck" min="player.age + 10min" max="player.age + 20min" />
         </do_if>
         <do_if value="not $MtCst_nextbreakapply?">
-          <set_value name="$MtCst_nextbreakapply" exact="player.age" />
+          <set_value name="$MtCst_nextbreakapply" min="player.age + 1min" max="player.age + 3min"  />
         </do_if>
         <do_if value="not $MtCst_locstate?">
           <set_value name="$MtCst_locstate" exact="1i" />
-          <set_value name="$MCGMH_locstate" exact="$MtCst_locstate" />
-          <include_interrupt_actions ref="MaintainanceCostGetMaxHp" />
-          <set_value name="$MtCst_maxhp" exact="$MCGMH_result" />
-          <remove_value name="$MCGMH_result" />
-          <remove_value name="$MCGMH_locstate" />
         </do_if>
-        <do_if value="@global.$maintainancecost_allships and not global.$maintainancecost_allships.{this.defensible}?">
-          <add_to_group groupname="global.$maintainancecost_allships" object="this.defensible" />
-        </do_if>
-        <do_if value="@player.entity.$maintainancecost_states">
-          <set_value name="player.entity.$maintainancecost_states.{this.defensible}" exact="[$MtCst_locstate, $MtCst_maxhp]" />
-        </do_if>
+        <signal_objects object="this.defensible" param="'MtCst_PutState'" />
         <debug_text text="'==MaintainanceCost== %s %s register itself to global table with state %s'.[this.defensible.idcode, this.defensible.knownname, player.entity.$maintainancecost_states.{this.defensible}]" filter="scripts" chance="global.$maintainancecost_debug" />
       </do_if>
     </actions>
@@ -374,26 +364,16 @@
             <do_if value="$MCBC_luck lt $MCBC_breakchance">
               <debug_text text="'==MaintainanceCost== %s %s passed routine break check and increase maintainance state from %s'.[this.defensible.idcode, this.defensible.knownname, $MtCst_locstate]" filter="scripts" chance="global.$maintainancecost_debug" />
               <set_value name="$MtCst_locstate" operation="add" exact="1i" />
-              <set_value name="$MCGMH_locstate" exact="$MtCst_locstate" />
-              <include_interrupt_actions ref="MaintainanceCostGetMaxHp" />
-              <set_value name="$MtCst_maxhp" exact="$MCGMH_result" />
-              <remove_value name="$MCGMH_result" />
-              <remove_value name="$MCGMH_locstate" />
-              <do_if value="@player.entity.$maintainancecost_states">
-                <set_value name="player.entity.$maintainancecost_states.{this.defensible}" exact="[$MtCst_locstate, $MtCst_maxhp]" />
-              </do_if>
+              <signal_objects object="this.defensible" param="'MtCst_PutState'" />
+              <!-- cleanup -->
+              <remove_value name="$MCBC_breakchance" />
+              <remove_value name="$MCBC_luck" />
             </do_if>
           </do_if>
         </do_if>
         <do_if value="$MtCst_locstate lt 1 or $MtCst_locstate gt 4">
           <debug_text text="'%s %s reaches an invalid maintainance state %s. This should not happen.'.[this.defensible.idcode, this.defensible.knownname, $MtCst_locstate]" filter="error" />
         </do_if>
-        <signal_objects object="this.defensible" param="'MtCst_PutState'" />
-        <remove_value name="$MCGMH_result" />
-        <remove_value name="$MCGMH_locstate" />
-        <!-- cleanup -->
-        <remove_value name="$MCBC_breakchance" />
-        <remove_value name="$MCBC_luck" />
       </do_if>
     </actions>
 
@@ -422,11 +402,12 @@
 
     <actions name="MaintainanceCostBreakApply">
       <do_if value="$MtCst_enabled">
-        <do_if value="$MtCst_nextbreakapply gt player.age">
+        <do_if value="player.age gt $MtCst_nextbreakapply">
           <set_value name="$MtCst_nextbreakapply" min="player.age + 1min" max="player.age + 3min" />
           <!-- damage ship -->
           <do_if value="this.defensible.hullpercentage gt $MtCst_maxhp">
             <set_value name="$MCBA_damagepercent" min="(3.3 - 0.03*$repairmodifier)*[(this.defensible.hullpercentage-$MtCst_maxhp)/20f, 1].max" max="(8.6 - 0.06*$repairmodifier)*[(this.defensible.hullpercentage-$MtCst_maxhp)/20f, 1].max" />
+            <debug_text text="'==MaintainanceCost== %s %s hull percent %s exceeds maxpercent %s of maintainance state %s. Now damage ship by a random percent %s in [%s,%s]. Next check in %s s'.[this.defensible.idcode, this.defensible.knownname, this.defensible.hullpercentage, $MtCst_maxhp,$MtCst_locstate, $MCBA_damagepercent, (3.3 - 0.03*$repairmodifier)*[(this.defensible.hullpercentage-$MtCst_maxhp)/20f, 1].max, (8.6 - 0.06*$repairmodifier)*[(this.defensible.hullpercentage-$MtCst_maxhp)/20f, 1].max, $MtCst_nextbreakapply-player.age]" filter="scripts" chance="global.$maintainancecost_debug" />
             <set_object_hull object="this.defensible" exact="[this.defensible.hullpercentage - $MCBA_damagepercent, $MtCst_maxhp].max" />
           </do_if>
           <!-- damage surface elements -->
@@ -435,12 +416,12 @@
               <match_hull min="$MtCst_maxhp + 0.2" />
             </find_object_component>
             <do_all counter="$i" exact="$MCBA_allsurfaceelements.count" >
-              <set_value name="$MCBA_damagepercent" min="3.3 - 0.03*$repairmodifier" max="8.6 - 0.06*$repairmodifier" />
+              <set_value name="$MCBA_damagepercent" min="(3.3 - 0.03*$repairmodifier)*[($MCBA_allsurfaceelements.{$i}.hullpercentage-$MtCst_maxhp)/20f, 1].max" max="(8.6 - 0.06*$repairmodifier)*[($MCBA_allsurfaceelements.{$i}.hullpercentage-$MtCst_maxhp)/20f, 1].max" />
               <!-- +0.1 to ensure that this does not disable surface elements -->
               <set_object_hull object="$MCBA_allsurfaceelements.{$i}" exact="[$MCBA_allsurfaceelements.{$i}.hullpercentage - $MCBA_damagepercent, $MtCst_maxhp + 0.1].max" />
             </do_all>
           </do_if>
-          <!-- if a ship is in junk state ($MtCst_locstate = 4), it has a tiny chance to self explode -->
+          <!-- if a ship is in junk state ($MtCst_locstate = 4), it has a chance to self explode -->
           <do_if value="$MtCst_locstate == 4 and this.defensible.hullpercentage lt 20">
             <set_value name="$MCBA_killline" exact="[2-this.defensible.hullpercentage/10f, 0].max" />
             <!-- throw the dice -->
@@ -475,26 +456,27 @@
 
     <handler name="MaintainanceCostHitBreak">
       <conditions>
-        <event_object_hull_damaged object="this.object" />
+        <event_object_hull_damaged object="this.defensible" />
         <check_value value="@$MtCst_enabled" />
         <check_value value="@$MtCst_nexthitcheck" />
         <check_value value="@$MtCst_locstate" />
         <check_value value="@$MtCst_maxhp" />
         <check_value value="player.age gt $MtCst_nexthitcheck" />
         <check_value value="this.defensible.hullpercentage lt $MtCst_maxhp" />
-        <set_value name="$damagedpercent" exact="event.param3/this.defensible.hull*100" />
+        <set_value name="$damagedpercent" exact="event.param3/this.defensible.maxhull*100" />
         <check_value value="$damagedpercent gt 0.5" />
       </conditions>
       <actions>
-        <set_value name="$MtCst_nexthitcheck" operation="add" exact="5s" />
-        <set_value name="$locbreakchance" exact="100*[1-0.75^($damagedpercent/100f), 0.25].min" />
+        <set_value name="$MtCst_nexthitcheck" min="player.age + 5s" max="player.age + 10s" />
+        <set_value name="$locbreakchance" exact="100*[1-0.5^($damagedpercent/100f), 0.5].min" />
         <set_value name="$locluck" min="0f" max="100f" />
+        <debug_text text="'==MaintainanceCost== %s %s is hit with damagepercent %s, next check in %s s, breakchance %s, dice roll %s'.[this.defensible.idcode, this.defensible.knownname, $damagedpercent, $MtCst_nexthitcheck-player.age, $locbreakchance, $locluck]" filter="scripts" chance="global.$maintainancecost_debug" />
         <do_if value="$locluck lt $locbreakchance">
           <do_if value="$MtCst_locstate lt 4">
             <set_value name="$MtCst_locstate" operation="add" exact="1i" />
             <set_value name="$MtCst_nextbreakcheck" min="player.age + 10min" max="player.age + 20min" />
-            <signal_objects object="this.object" param="'MtCst_PutState'" />
-            <debug_text text="'==MaintainanceCost== %s %s is broken by a heavy hit. Increasing state from %s by 1.'.[this.object.idcode, this.object.knownname, $MtCst_locstate, event.param3]" filter="scripts" chance="global.$maintainancecost_debug" />
+            <signal_objects object="this.defensible" param="'MtCst_PutState'" />
+            <debug_text text="'==MaintainanceCost== %s %s is broken by a heavy hit. Increasing state by 1 to %s.'.[this.defensible.idcode, this.defensible.knownname, $MtCst_locstate, event.param3]" filter="scripts" chance="global.$maintainancecost_debug" />
           </do_if>
           <do_else>
             <destroy_object object="this.defensible" explosion="true" />
@@ -513,12 +495,12 @@
 
     <handler name="MaintainanceCostSetState">
       <conditions>
-        <event_object_signalled object="this.object" param="'MtCst_SetState'" />
+        <event_object_signalled object="this.defensible" param="'MtCst_SetState'" />
         <check_value value="@$MtCst_enabled" />
         <check_value value="@$MtCst_locstate" />
       </conditions>
       <actions>
-        <debug_text text="'==MaintainanceCost== %s %s is signalled to %s its state by %s'.[this.object.idcode, this.object.knownname, event.param2, event.param3]" filter="scripts" chance="global.$maintainancecost_debug" />
+        <debug_text text="'==MaintainanceCost== %s %s is signalled to %s its state by %s'.[this.defensible.idcode, this.defensible.knownname, event.param2, event.param3]" filter="scripts" chance="global.$maintainancecost_debug" />
         <set_value name="$tmp" exact="$MtCst_locstate" />
         <do_if value="@event.param2 == 'set' and @event.param3">
           <set_value name="$tmp" exact="(event.param3)i" />
@@ -529,8 +511,7 @@
         <do_if value="$tmp != $MtCst_locstate and $tmp ge 1 and $tmp le 4">
           <set_value name="$MtCst_locstate" exact="$tmp" />
           <set_value name="$MtCst_nextbreakcheck" min="player.age + 10min" max="player.age + 20min" />
-          <signal_objects object="this.object" param="'MtCst_PutState'" />
-          <include_interrupt_actions ref="MaintainanceCostBreakCheck" />
+          <signal_objects object="this.defensible" param="'MtCst_PutState'" />
         </do_if>
       </actions>
     </handler>
@@ -538,13 +519,13 @@
 
     <handler name="MaintainanceCostPutState">
       <conditions>
-        <event_object_signalled object="this.object" param="'MtCst_PutState'" />
+        <event_object_signalled object="this.defensible" param="'MtCst_PutState'" />
         <check_value value="@$MtCst_enabled" />
         <check_value value="@$MtCst_locstate" />
         <check_value value="@player.entity.$maintainancecost_states" />
       </conditions>
       <actions>
-        <set_value name="$oldstate" exact="[@$MCGMH_locstate, @$MtCst_maxhp]" />
+        <set_value name="$oldstate" exact="[@$MtCst_locstate, @$MtCst_maxhp]" />
         <set_value name="$MCGMH_locstate" exact="$MtCst_locstate" />
         <include_interrupt_actions ref="MaintainanceCostGetMaxHp" />
         <set_value name="$MtCst_maxhp" exact="$MCGMH_result" />
@@ -555,7 +536,7 @@
         <set_value name="$locmodifier" exact="[this.defensible.combinedskill, 90].min + 10"/>
         <set_value name="$locfac" exact="0.6 + (0.4 * $locmodifier / 100)"/>
         <set_value name="$hulldamagelimit" exact="$MtCst_maxhp*$locfac" />
-        <debug_text text="'==MaintainanceCost== %s %s is signalled to update maintainance state. Old state %s. New state %s'.[this.object.idcode, this.object.knownname, $oldstate, player.entity.$maintainancecost_states.{this.defensible}]" filter="scripts" chance="global.$maintainancecost_debug" />
+        <debug_text text="'==MaintainanceCost== %s %s is signalled to update maintainance state. Old state %s. New state %s'.[this.defensible.idcode, this.defensible.knownname, $oldstate, player.entity.$maintainancecost_states.{this.defensible}]" filter="scripts" chance="global.$maintainancecost_debug" />
       </actions>
     </handler>
 
