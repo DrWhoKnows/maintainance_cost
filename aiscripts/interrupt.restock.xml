@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<diff>
+
+  <!-- set maintainance info at beginning -->
+  <add sel="//actions[@name='ResupplyCheck']" pos="prepend">
+    <signal_objects object="this.ship" param="'MtCst_PutState'" />
+    <set_value name="$MtCst_state_interrupt" exact="1" />
+    <set_value name="$MtCst_maxhp_interrupt" exact="100" />
+    <set_value name="$MtCst_recondition" exact="false"/>
+    <set_value name="$MtCst_onlyusestation" exact="false" />
+    <do_if value="@player.entity.$maintainancecost_states.{this.ship}">
+      <set_value name="$MtCst_state_interrupt" exact="player.entity.$maintainancecost_states.{this.ship}.{1}" />
+      <set_value name="$MtCst_maxhp_interrupt" exact="player.entity.$maintainancecost_states.{this.ship}.{2}" />
+    </do_if>
+    <do_if value="$MtCst_state_interrupt gt 1">
+      <set_value name="$MtCst_recondition" exact="true"/>
+    <set_value name="$MtCst_onlyusestation" exact="true" />
+    </do_if>
+    <do_if value="$MtCst_state_interrupt gt 3">
+      <set_value name="$urgent" exact="1"/>
+    </do_if>
+  </add>
+
+
+  <!-- automatic resupply consider repair only if below maxhp -->
+  <add sel="//actions[@name='ResupplyCheck']/do_if[@value='not $cleanup_interrupt?']/do_if[@value='$repair']/do_if[@value='not $hullpercent?']/set_value[@name='$hullpercent' and @exact='100']" pos="after">
+    <set_value name="$hullpercent" exact="$MtCst_maxhp_interrupt" />
+    <debug_text text="'==MaintainanceCost== %s %s set repair threshold to %s% in automatic resupply check.'.[this.ship.idcode, this.ship.knownname, $hullpercent]" filter="scripts" chance="global.$maintainancecost_debug" />
+	</add>
+
+
+  <!-- automatic resupply consider repair only if below maxhp -->
+  <replace sel="//actions[@name='ResupplyCheck']/do_if[@value='not $cleanup_interrupt?']/do_if[@value='$repair']/find_object_component[@name='$damaged_components_interrupt']/match_any">
+    <match_any>
+      <match restorable="true" comment="wrecked"/>
+      <match repairable="true" invulnerable="false">
+        <match_hull min="$hullpercent" negate="true"/>
+      </match>
+      <match needsrepair="true" invulnerable="false">
+        <match_hull min="$hullpercent" negate="true"/>
+      </match>
+    </match_any>
+  </replace>
+
+
+  <!-- force repair check if we need recondition -->
+  <add sel="//actions[@name='ResupplyCheck']/do_if[@value='not $cleanup_interrupt?']/do_if[@value='$repair']/do_if[@value='$repair']" pos="before">
+    <do_if value="$MtCst_recondition">
+      <set_value name="$repair" exact="true"/>
+    </do_if>
+  </add>
+
+
+  <!-- only recondition at stations -->
+  <add sel="//do_elseif[@value='$repair and not $resupplystations_interrupt.{$counter_lib_resupplystations}.canbuildclass.{this.ship.class} and not $resupplystations_interrupt.{$counter_lib_resupplystations}.cansupplyclass.{this.ship.class}']" pos="after">
+    <do_elseif value="$MtCst_onlyusestation and not $resupplystations_interrupt.{$counter_lib_resupplystations}.ismodular">
+      <debug_text text="'==MaintainanceCost== remove 1: %s %s %s. only recondition on stations.'.[@$resupplystations_interrupt.{$counter_lib_resupplystations}.idcode, @$resupplystations_interrupt.{$counter_lib_resupplystations}.knownname, @$resupplystations_interrupt.{$counter_lib_resupplystations}]" filter="scripts" chance="global.$maintainancecost_debug"/>
+      <remove_value name="$resupplystations_interrupt.{$counter_lib_resupplystations}"/>
+    </do_elseif>
+  </add>
+
+
+  <!-- relax the only station requirement if nothing found -->
+  <add sel="//debug_text[@text=&quot;&apos;no resupply ship or station found that can do everything we need. checking for one that can just do repairs.&apos;&quot;]" pos="after">
+    <do_if value="$pass_interrupt gt 1">
+      <debug_text text="'==MaintainanceCost== no station found that can do everything we need for %s %s %s. checking for both ships and stations now.'.[@$resupplystations_interrupt.{$counter_lib_resupplystations}.idcode, @$resupplystations_interrupt.{$counter_lib_resupplystations}.knownname, @$resupplystations_interrupt.{$counter_lib_resupplystations}]" filter="scripts" chance="global.$maintainancecost_debug"/>
+      <set_value name="$MtCst_onlyusestation" exact="false"/>
+    </do_if>
+  </add>
+
+
+  <!-- prefer EQs and resupply ships over warf/shipyard -->
+  <add sel="//do_all[@exact='$resupplystations_interrupt.count']" pos="before" >
+    <set_value name="$tmp" exact="[]" />
+    <do_for_each in="$resupplystations_interrupt" name="$locst">
+      <do_if value="$locst.canbuildclass.{this.ship.class}">
+        <append_to_list name="$tmp" exact="$locst" />
+      </do_if>
+    </do_for_each>
+    <remove_from_list name="$resupplystations_interrupt" list="$tmp" />
+    <append_list_elements name="$resupplystations_interrupt" other="$tmp" />
+    <remove_value name="$tmp" />
+  </add>
+
+
+  <!-- create recondition order -->
+  <add sel="//do_if[@value='$repair and ($hullpercent gt this.ship.hullpercentage or $damagedcomponents.count)']" pos="after">
+    <do_if value="$MtCst_recondition">
+      <debug_text text="'==MaintainanceCost== %s %s going in for recondition at %s %s in %s, %s.'.[this.ship.idcode, this.ship.knownname, $destination_station_interrupt.idcode, $destination_station_interrupt.knownname, $destination_station_interrupt.sector.knownname, $destination_station_interrupt.cluster.knownname]" filter="scripts" chance="global.$maintainancecost_debug"/>
+      <create_order object="this.ship" id="'Recondition'" immediate="true">
+        <param name="destination" value="$destination_station_interrupt"/>
+        <param name="dorepair" value="true"/>
+        <param name="internalorder" value="$internalorder_interrupt"/>
+        <param name="debugchance" value="global.$maintainancecost_debug"/>
+      </create_order>
+    </do_if>
+  </add>
+
+</diff>

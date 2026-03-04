@@ -5,6 +5,7 @@
     <handler ref="MaintainanceCostHitBreak" />
     <handler ref="MaintainanceCostSetState" />
     <handler ref="MaintainanceCostPutState" />
+    <handler ref="MaintainanceCostUpdateState" />
   </add>
 
 
@@ -16,11 +17,12 @@
       <set_value name="$MtCst_nextbreakapply" min="player.age + 1min" max="player.age + 3min"  />
       <set_value name="$MtCst_locstate" exact="1i" />
       <set_value name="$MtCst_maxhp" exact="100" />
+      <set_value name="$MtCst_cost" exact="[table[], table[], table[]]" />
       <do_if value="@global.$maintainancecost_allships and not global.$maintainancecost_allships.{this.defensible}?">
           <add_to_group groupname="global.$maintainancecost_allships" object="this.defensible" />
         </do_if>
         <do_if value="@player.entity.$maintainancecost_states">
-          <set_value name="player.entity.$maintainancecost_states.{this.defensible}" exact="[$MtCst_locstate, $MtCst_maxhp]" />
+          <set_value name="player.entity.$maintainancecost_states.{this.defensible}" exact="[$MtCst_locstate, $MtCst_maxhp, $MtCst_cost]" />
         </do_if>
     </do_if>
     <debug_text text="'==MaintainanceCost== maintainance initialized on %s %s with %s and state %s.'.[this.defensible.idcode, this.defensible.knownname, $MtCst_enabled, @$MtCst_locstate]" filter="scripts" chance="global.$maintainancecost_debug" />

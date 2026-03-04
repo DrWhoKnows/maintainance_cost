@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<aiscript name="order.recondition" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" priority="3" version="1">
+  <!--Fly to a suitable object to recondition-->
+
+  <order id="Recondition" name="{90105,7002}" description="{90105,7003}" category="internal" infinite="false" allowinloop="false">
+    <params>
+      <param name="destination" type="object" text="{1041, 10027}" comment="Destination. NB: destination MUST have a ship trader.">
+        <input_param name="class" value="[class.station]" />
+        <input_param name="hasbuildmodule" value="1"/>
+      </param>
+      <param name="dorepair" text="{1041, 10098}" type="bool" default="true" comment="Repair. Should the ship also repair?"/>
+      <param name="cannotdock" type="internal" default="false" text="{1041, 10133}" comment="Unable to dock. used for error handling in case of inability to dock"/>
+      <param name="internalorder" type="bool" default="false" advanced="true" text="{1041, 10159}" comment="Order results from an automated behavior."/>
+      <param name="debugchance" type="bool" default="0" advanced="true" text="{1041, 10086}" comment="Print debug output">
+        <input_param name="truevalue" value="100"/>
+      </param>
+    </params>
+    <requires>
+      <match shiptype="shiptype.lasertower" negate="true"/>
+      <match class="class.spacesuit" negate="true"/>
+      <match class="[class.ship_s, class.ship_m, class.ship_l, class.ship_xl]" />
+    </requires>
+    <location object="$destination" condition="@$destination.exists"/>
+  </order>
+  <!-- to do: determine if any further interrupts are needed. add here as necessary. -->
+  <interrupts>
+    <handler ref="AttackHandler"/>
+    <handler ref="MissileLockHandler" />
+    <handler ref="ScannedHandler"/>
+    <handler ref="InspectedHandler"/>
+    <handler ref="FoundAbandonedHandler"/>
+    <handler ref="TideHandler"/>
+  </interrupts>
+  <init>
+    <do_if value="this.ship.isunit">
+      <cancel_order order="this.order" />
+    </do_if>
+    <set_command command="command.repair"/>
+  </init>
+  <attention min="unknown">
+    <actions>
+      <label name="init"/>
+
+      <signal_objects object="this.ship" param="'MtCst_PutState'" />
+      <!-- short wait to prevent any further blocking actions in case this order has already been cancelled at this point. in that case, order will stop after the blocking action. important for actions that act upon this order. -->
+      <wait exact="1ms" />
+
+      <do_if value="not $destination.isoperational">
+        <debug_text text="'==MaintainanceCost== destination no longer operational. aborting.'" chance="$debugchance"/>
+        <resume label="finish"/>
+      </do_if>
+
+      <do_if value="not $destination.shiptrader">
+        <debug_text text="'==MaintainanceCost== destination %s %s %s %s does not have a shiptrader. station cannot do reconditions. aborting.'.[$destination.class, $destination.idcode, $destination.knownname, $destination]" filter="error"/>
+        <resume label="finish"/>
+      </do_if>
+
+      <do_if value="not @player.entity.$maintainancecost_states.{this.ship} or player.entity.$maintainancecost_states.{this.ship}.{1} == 1 ">
+        <debug_text text="'==MaintainanceCost== Not broken. Aborting'" chance="$debugchance"/>
+        <resume label="finish"/>
+      </do_if>
+
+      <do_if value="$destination.exists">
+        <do_if value="(@this.ship.dock.container == $destination) or (this.ship.parkedat and ((this.ship.parkedat == $destination) or this.ship.parkedat.hascontext.{$destination}))">
+          <debug_text text="'==MaintainanceCost== already docked at %s %s. proceeding to recondition.'.[$destination.knownname, $destination]" chance="$debugchance"/>
+          <resume label="recondition"/>
+        </do_if>
+        <resume label="flyto"/>
+      </do_if>
+
+      <label name="finddestination"/>
+
+      <!--TODO: Find suitable destination-->
+      <do_if value="not $destination.exists">
+        <debug_text text="'==MaintainanceCost== No suitable destination to recondition found. Aborting'" chance="$debugchance"/>
+        <resume label="finish"/>
+      </do_if>
+
+      <label name="flyto"/>
+
+      <!-- if we are not where the station is, go there. -->
+      <do_if value="$destination.zone" exact="this.zone" negate="true">
+        <debug_text text="'==MaintainanceCost== %1 (%2) needs to go to %3, %4, %5 to resupply at %6. Going there.'.[this.ship.knownname, this.ship, $destination.zone.knownname, $destination.sector.knownname, $destination.cluster.knownname, $destination.knownname]" chance="$debugchance"/>
+        <run_script name="'move.generic'" result="$movesuccess">
+          <param name="destination" value="$destination"/>
+          <param name="endintargetzone" value="true"/>
+          <param name="strictblacklist" value="$internalorder"/>
+          <param name="debugchance" value="$debugchance"/>
+        </run_script>
+        <do_if value="not $movesuccess">
+          <do_if value="@this.assignedcontrolled.order.isrunning">
+            <set_order_failed order="this.assignedcontrolled.order" text="{1045, 101}" comment="Unable to reach destination."/>
+          </do_if>
+          <debug_text text="'==MaintainanceCost== Unable to move to destination %s %s possibly due to blacklist. Returning.'.[$destination.class, @$destination.knownname]" chance="$debugchance"/>
+          <resume label="finish"/>
+        </do_if>
+      </do_if>
+
+      <do_if value="not $cannotdock">
+        <create_order object="this.ship" id="'DockAndWait'" immediate="true">
+          <param name="destination" value="$destination"/>
+          <param name="building" value="true"/>
+          <param name="callerid" value="this.ship.order"/>
+          <param name="internalorder" value="true"/>
+          <param name="debugchance" value="$debugchance"/>
+        </create_order>
+        <wait exact="1ms"/>
+      </do_if>
+      <do_else>
+        <debug_text text="'==MaintainanceCost== cannot dock. aborting.'" chance="$debugchance"/>
+        <resume label="finish"/>
+      </do_else>
+
+      <label name="recondition"/>
+
+      <debug_text text="'==MaintainanceCost== signalling %s %s to recondition ship %s %s.'.[$destination.idcode, $destination.knownname, this.ship.idcode, this.ship.knownname]" chance="$debugchance"/>
+      <!-- signal received in build.shiptrader -->
+      <set_value name="$old_state" exact="player.entity.$maintainancecost_states.{this.assignedcontrolled}.{1}" />
+      <!-- request state update -->
+      <signal_objects object="this.assignedcontrolled" param="'MtCst_PutState'" param2="true" />
+      <!-- wait for state update to take effect -->
+      <wait min="5ms" max="20ms" />
+      <signal_objects object="$destination" param="'MtCst_ReconditionInitiate'" param2="this.assignedcontrolled"/>
+      <wait exact="10min">
+        <interrupt>
+          <conditions>
+            <event_object_signalled object="this.assignedcontrolled" param="'MtCst_ReconditionDone'"/>
+          </conditions>
+          <actions>
+            <set_value name="$money" exact="event.param3" />
+            <do_if value="not event.param2">
+              <debug_text text="'==MaintainanceCost== %s %s %s recondition failed. Reason %s.'.[this.assignedcontrolled.idcode, this.assignedcontrolled.knownname, this.assignedcontrolled, event.param3]" chance="$debugchance"/>
+              <do_if value="this.assignedcontrolled.isplayerowned">
+                <set_order_failed order="this.order" text="event.param3" />
+                <resume label="finish" />
+              </do_if>
+            </do_if>
+          </actions>
+        </interrupt>
+      </wait>
+      <wait min="5ms" max="20ms" />
+      <debug_text text="'==MaintainanceCost== %s %s %s reconditioned from state %s to state: %s.'.[this.assignedcontrolled.idcode, this.assignedcontrolled.knownname, this.assignedcontrolled, $old_state, player.entity.$maintainancecost_states.{this.assignedcontrolled}.{1}]" chance="$debugchance"/>
+      <do_if value="this.assignedcontrolled.isplayerowned">
+        <write_to_logbook category="upkeep" title="{90105,7006}" text="{90105,7007}.[this.assignedcontrolled.knownname, this.assignedcontrolled.idcode, $destination.knownname, $destination.idcode, $money]" object="this.assignedcontrolled" interaction="showonmap" money="$money" />
+      </do_if>
+      <remove_value name="$money" />
+      
+      <do_if value="$dorepair">
+        <set_value name="$damaged" exact="false"/>
+        <do_if value="this.ship.hull != this.ship.maxhull">
+          <set_value name="$damaged" exact="true"/>
+        </do_if>
+        <find_object_component name="$check_damagedcomponents" object="this.ship" checkoperational="false" multiple="true">
+          <!--<match class="class.ship" checkoperational="false" negate="true"/>-->
+          <match_any>
+            <match restorable="true" comment="wrecked"/>
+            <match repairable="true" invulnerable="false">
+              <match_hull min="100" negate="true"/>
+            </match>
+            <match needsrepair="true" invulnerable="false">
+              <match_hull min="100" negate="true"/>
+            </match>
+          </match_any>
+        </find_object_component>
+        <do_if value="$check_damagedcomponents.count gt 0 and $check_damagedcomponents.{1}.exists">
+          <set_value name="$damaged" exact="true"/>
+          <set_value name="$damagedcomponents" exact="$check_damagedcomponents"/>
+        </do_if>
+        <signal_objects object="$destination" param="'repairs_initiate'" param2="this.assignedcontrolled" param3="[100, $damagedcomponents]"/>
+        <wait exact="10min">
+        <interrupt>
+          <conditions>
+            <event_object_signalled object="this.assignedcontrolled" param="'repairs_done'"/>
+          </conditions>
+          <actions>
+            <debug_text text="'==MaintainanceCost== %s %s %s repaired. hullpercentage: %s, should be: %s'.[this.assignedcontrolled.idcode, this.assignedcontrolled.knownname, this.assignedcontrolled, this.assignedcontrolled.hullpercentage, $hullpercent]" chance="$debugchance"/>
+          </actions>
+        </interrupt>
+      </wait>
+      </do_if>
+
+      <label name="finish"/>
+      <!-- insert cleanup in case of order failure here. -->
+
+      <wait min="2s" max="3s"/>
+
+    </actions>
+  </attention>
+  <on_abort>
+  </on_abort>
+</aiscript>

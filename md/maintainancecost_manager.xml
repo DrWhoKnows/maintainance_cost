@@ -32,7 +32,7 @@
           <owner exact="faction.argon" />
         </create_control_entity>
         <signal_cue cue="Maintainancecost_monitor" />
-        <signal_cue cue="Maintainancecost_setdebug" />
+        <signal_cue cue="Maintainancecost_setmisc" />
         <!-- <signal_cue cue="Maintainancecost_coststatitics" /> -->
       </actions>
     </cue>
@@ -75,24 +75,209 @@
             <remove_value name="player.entity.$maintainancecost_states.{event.object}" />
           </actions>
         </cue>
+        <cue name="Inituidata">
+          <conditions>
+            <event_ui_triggered screen="'MapMenu'" />
+          </conditions>
+          <actions>
+            <do_if value="player.isinfullscreenmenu">
+              <raise_lua_event name="'MaintainanceCost_Initdata'" />
+            </do_if>
+            <do_else>
+              <raise_lua_event name="'MaintainanceCost_Cleardata'" />
+            </do_else>
+            <reset_cue cue="this" />
+          </actions>
+        </cue>
       </cues>
     </cue>
 
 
-    <cue name="Maintainancecost_setdebug">
+    <cue name="Maintainancecost_setmisc">
       <conditions>
         <check_any>
+          <event_game_started />
           <event_game_loaded />
           <event_cue_signalled />
         </check_any>
       </conditions>
       <actions>
         <set_value name="global.$maintainancecost_debug" exact="100" />
+        <raise_lua_event name="'Interact_Menu_API.Add_Custom_Actions_Group_Id'" param="'maintainance_cost'"/>
+        <raise_lua_event name="'Interact_Menu_API.Add_Custom_Actions_Group_Text'" param="{90105,7010}"/>
         <reset_cue cue="this" />
       </actions>
     </cue>
 
 
+    <!-- Interaction Menu -->
+    
+    
+    <cue name="Maintainancecost_interaction_info" >
+      <conditions>
+        <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions" />
+        <check_value value="@player.entity.$maintainancecost_states" />
+        <check_value value="@event.param.$object.isoperational" />
+        <check_value value="event.param.$object.isknown" />
+        <check_any>
+          <check_all>
+            <check_value value="@event.param.$selectedplayerships.{1}.isoperational" />
+            <check_value value="@event.param.$selectedplayerships.{1}.isplayerowned" />
+            <check_value value="@player.entity.$maintainancecost_states.{event.param.$selectedplayerships.{1}}" />
+            <check_value value="@event.param.$object.canequipclass.{event.param.$selectedplayerships.{1}.class}" />
+            <check_value value="event.param.$object.relationto.{faction.player} gt -0.01" />
+          </check_all>
+          <check_all>
+            <check_value value="event.param.$object.isplayerowned" />
+            <check_value value="@player.entity.$maintainancecost_states.{event.param.$object}" />
+          </check_all>
+        </check_any>
+      </conditions>
+      <actions>
+        <create_group groupname="$locships" />
+        <do_if value="@event.param.$selectedplayerships.count">
+          <do_for_each name="$s" in="event.param.$selectedplayerships">
+            <signal_objects object="$s" param="'MtCst_PutState'" param2="true"/>
+            <do_if value="$s.isplayerowned and $s.isoperational and player.entity.$maintainancecost_states.{$s}? and player.entity.$maintainancecost_states.{$s}.{1} gt 1">
+              <add_to_group groupname="$locships" object="$s" />
+            </do_if>
+          </do_for_each>
+        </do_if>
+        <do_if value="@player.entity.$maintainancecost_states.{event.param.$object}">
+          <signal_objects object="event.param.$object" param="'MtCst_PutState'" param2="true"/>
+          <do_if value="event.param.$object.isoperational and player.entity.$maintainancecost_states.{event.param.$object}? and player.entity.$maintainancecost_states.{event.param.$object}.{1} gt 1">
+            <add_to_group groupname="$locships" object="event.param.$object" />
+          </do_if>
+          <set_value name="$locdest" exact="null" />
+        </do_if>
+        <do_else>
+          <set_value name="$locdest" exact="event.param.$object" />
+        </do_else>
+        <do_if value="$locdest">
+          <set_value name="$ordertext" exact="{90105,7011}" />
+          <set_value name="$ordertext2" exact="{90105,7014}" />
+        </do_if>
+        <do_else>
+          <set_value name="$ordertext" exact="{90105,7015}" />
+          <set_value name="$ordertext2" exact="{90105,7017}" />
+        </do_else>
+        <do_if value="$locships.count">
+          <!-- estimate cost -->
+          <set_value name="$refprice" exact="0Cr" />
+          <set_value name="$refprice2" exact="0Cr" />
+          <set_value name="$costtableidx" exact="null" />
+          <do_for_each name="$locship" in="$locships">
+            <set_value name="$loccosttable" exact="player.entity.$maintainancecost_states.{$locship}.{3}" />
+            <do_if value="not $costtableidx">
+              <set_value name="$costtableidx" exact="1" />
+              <do_if value="$locdest">
+                <set_value name="$cargotable" exact="$locdest.cargo.table" />
+                <do_all counter="$i" exact="$loccosttable.count">
+                  <set_value name="$haveall" exact="true" />
+                  <do_for_each name="$w" in="$loccosttable.{$i}">
+                    <do_if value="not $cargotable.{$w}?">
+                      <set_value name="$haveall" exact="false" />
+                      <break />
+                    </do_if>
+                  </do_for_each>
+                  <do_if value="$haveall">
+                    <set_value name="$costtableidx" exact="$i" />
+                    <break />
+                  </do_if>
+                </do_all>
+              </do_if>
+            </do_if>
+            <set_value name="$ware2use" exact="$loccosttable.{$costtableidx}" />
+            <set_value name="$locprice" exact="0Cr" />
+            <do_for_each name="$w" in="$ware2use">
+              <set_value name="$locprice" operation="add" exact="2*$w.maxprice*$ware2use.{$w}" />
+            </do_for_each>
+            <set_value name="$refprice" operation="add" exact="$locprice" />
+            <set_value name="$refprice2" operation="add" exact="$locprice + $locship.repairprice" />
+          </do_for_each>
+          <!-- set up ui texts -->
+          <set_value name="$menuactive" exact="true" />
+          <do_if value="@$locdest.isplayerowned">
+            <set_value name="$free" exact="{90105,7018}" />
+          </do_if>
+          <do_else>
+            <set_value name="$free" exact="''" />
+          </do_else>
+          <do_if value="$locdest">
+            <set_value name="$menutooltip" exact="{90105,7012}.[$locships.count, $refprice/1Cr, $free]" />
+            <set_value name="$menutooltip2" exact="{90105,70121}.[$locships.count, $refprice2/1Cr, $free]" />
+          </do_if>
+          <do_else>
+            <set_value name="$menutooltip" exact="{90105,7016}.[$locships.count, $refprice/1Cr, $free]" />
+            <set_value name="$menutooltip2" exact="{90105,70161}.[$locships.count, $refprice2/1Cr, $free]" />
+          </do_else>
+        </do_if>
+        <do_else>
+          <set_value name="$menuactive" exact="false" />
+          <set_value name="$menutooltip" exact="{90105,7013}" />
+          <set_value name="$menutooltip2" exact="{90105,7013}" />
+        </do_else>
+        <signal_cue_instantly
+          cue="md.Interact_Menu_API.Add_Action"
+          param = "table[
+            $id         = 'maintainancecost_recondition',
+            $section    = 'maintainance_cost',
+            $text       = $ordertext,
+            $text2      = @$locdest.knownname,
+            $icon       = 'order_repair',
+            $mouseover  = $menutooltip,
+            $active     = $menuactive,
+            $callback   = Maintainancecost_OrderRecondition,
+            $echo       = [$locships, $locdest, false]
+            ]"/>
+        <signal_cue_instantly
+          cue="md.Interact_Menu_API.Add_Action"
+          param = "table[
+            $id         = 'maintainancecost_reconditionrepair',
+            $section    = 'maintainance_cost',
+            $text       = $ordertext2,
+            $text2      = @$locdest.knownname,
+            $icon       = 'order_repair',
+            $mouseover  = $menutooltip2,
+            $active     = $menuactive,
+            $callback   = Maintainancecost_OrderRecondition,
+            $echo       = [$locships, $locdest, true]
+            ]"/>
+        <reset_cue cue="this" />
+      </actions>
+    </cue>
+
+    
+    <cue name="Maintainancecost_OrderRecondition">
+      <conditions>
+        <event_cue_signalled />
+        <check_value value="event.param.$echo.{1}.count" />
+      </conditions>
+      <actions>
+        <do_if value="@event.param.$echo.{2} and event.param.$echo.{2}.isoperational">
+          <do_for_each name="$s" in="event.param.$echo.{1}">
+            <create_order object="$s" id="'Recondition'" >
+              <param name="destination" value="event.param.$echo.{2}" />
+              <param name="dorepair" value="event.param.$echo.{3}" />
+              <param name="internalorder" value="false" />
+              <param name="debugchance" value="global.$maintainancecost_debug" />
+            </create_order>
+          </do_for_each>
+        </do_if>
+        <do_else>
+          <do_for_each name="$s" in="event.param.$echo.{1}">
+            <create_order object="$s" id="'FindRecondition'" >
+              <param name="dorepair" value="event.param.$echo.{3}" />
+              <param name="internalorder" value="false" />
+              <param name="debugchance" value="global.$maintainancecost_debug" />
+            </create_order>
+          </do_for_each>
+        </do_else>
+        <reset_cue cue="this" />
+      </actions>
+    </cue>
+
+    
     <cue name="Maintainancecost_coststatitics">
       <conditions>
         <event_cue_signalled />

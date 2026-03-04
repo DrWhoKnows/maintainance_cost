@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<aiscript name="maintainancecost_lib" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" priority="1">
+<aiscript name="Maintainancecost_lib" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" priority="1">
 <interrupts>
   <library>
     
@@ -115,6 +115,28 @@
           <set_value name="$MCGSC_cost" exact="$MCGSC_builder.buildresources.{$MCGSC_locbuild}.table" />
         </do_if>
         <remove_build object="$MCGSC_builder" build="$MCGSC_locbuild" />
+        <!-- remove ammo costs -->
+        <do_for_each in="$MCGSC_ship.ammostorage.missile.table" name="$m">
+          <do_for_each in="$m.ware.resources.table" name="$w">
+            <set_value name="$MCGSC_cost.{$w}" operation="subtract" exact="$m.ware.resources.table.{$w}*$MCGSC_ship.ammostorage.missile.table.{$m}" />
+          </do_for_each>
+        </do_for_each>
+        <do_for_each in="$MCGSC_ship.ammostorage.deployable.table" name="$m">
+          <do_for_each in="$m.ware.resources.table" name="$w">
+            <set_value name="$MCGSC_cost.{$w}" operation="subtract" exact="$m.ware.resources.table.{$w}*$MCGSC_ship.ammostorage.deployable.table.{$m}" />
+          </do_for_each>
+        </do_for_each>
+        <do_for_each in="$MCGSC_ship.ammostorage.countermeasure.table" name="$m">
+          <do_for_each in="$m.ware.resources.table" name="$w">
+            <set_value name="$MCGSC_cost.{$w}" operation="subtract" exact="$m.ware.resources.table.{$w}*$MCGSC_ship.ammostorage.countermeasure.table.{$m}" />
+          </do_for_each>
+        </do_for_each>
+        <!-- remove drone cost -->
+        <do_for_each in="$MCGSC_ship.units.table" name="$m">
+          <do_for_each in="$m.ware.resources.table" name="$w">
+            <set_value name="$MCGSC_cost.{$w}" operation="subtract" exact="$m.ware.resources.table.{$w}*$MCGSC_ship.units.table.{$m}" />
+          </do_for_each>
+        </do_for_each>
         <!-- convert cost into all build method wares, value equivalence: 
           1. keep Ecell
           2. hullparts <=> 10*microlattice
@@ -243,6 +265,51 @@
         </do_for_each>
         <!-- convert everything else to claytronics -->
         <set_value name="$MCGSC_clpware.{ware.claytronics}" operation="add" exact="($MCGSC_tmp/ware.claytronics.averageprice)i" />
+        <!-- add back drone costs -->
+        <set_value name="$MCGSC_genware.{ware.dronecomponents}" exact="0" />
+        <set_value name="$MCGSC_genware.{ware.smartchips}" exact="0" />
+        <do_for_each in="$MCGSC_ship.units.table" name="$m">
+          <do_if value="$MCGSC_ship.units.table.{$m} lt 1">
+            <continue />
+          </do_if>
+          <set_value name="$MCGSC_tmp" exact="0" />
+          <do_for_each in="$m.ware.raceresources.{race.argon}.table" name="$w">
+            <set_value name="$MCGSC_tmp" operation="add" exact="$m.ware.raceresources.{race.argon}.table.{$w}*$w.averageprice*$MCGSC_ship.units.table.{$m}" />
+          </do_for_each>
+          <!-- fill gen table -->
+          <do_if value="$m.ware.raceresources.{race.argon}.table.{ware.dronecomponents}">
+            <do_for_each in="$m.ware.resources.{race.argon}.table" name="$w">
+              <set_value name="$MCGSC_genware.{$w}" operation="add" exact="$m.ware.raceresources.{race.argon}.table.{$w}*$MCGSC_ship.units.table.{$m}" />
+            </do_for_each>
+          </do_if>
+          <do_else>
+            <set_value name="$MCGSC_tmp2" exact="[($MCGSC_tmp/(ware.dronecomponents.averageprice + ware.smartchips.averageprice*30 + ware.energycells.averageprice*50))i, 1].max" />
+            <set_value name="$MCGSC_genware.{ware.dronecomponents}" operation="add" exact="$MCGSC_tmp2" />
+            <set_value name="$MCGSC_genware.{ware.smartchips}" operation="add" exact="$MCGSC_tmp2*30" />
+            <set_value name="$MCGSC_genware.{ware.energycells}" operation="add" exact="$MCGSC_tmp2*50" />
+          </do_else>
+          <!-- fill ter table -->
+          <do_if value="@ware.siliconcarbide">
+            <do_if value="$m.ware.raceresources.{race.terran}.table.{ware.siliconcarbide}">
+              <do_for_each in="$m.ware.resources.{race.terran}.table" name="$w">
+                <set_value name="$MCGSC_terware.{$w}" operation="add" exact="$m.ware.raceresources.{race.terran}.table.{$w}*$MCGSC_ship.units.table.{$m}" />
+              </do_for_each>
+            </do_if>
+            <do_else>
+              <set_value name="$MCGSC_tmp2" exact="[($MCGSC_tmp/(ware.siliconcarbide.averageprice + ware.metallicmicrolattice.averageprice*10 + ware.energycells.averageprice*150))i, 1].max" />
+              <set_value name="$MCGSC_terware.{ware.siliconcarbide}" operation="add" exact="$MCGSC_tmp2" />
+              <set_value name="$MCGSC_terware.{ware.metallicmicrolattice}" operation="add" exact="$MCGSC_tmp2*10" />
+              <set_value name="$MCGSC_terware.{ware.energycells}" operation="add" exact="$MCGSC_tmp2*150" />
+            </do_else>
+          </do_if>
+          <!-- fill closed loop table -->
+          <!-- no race to use closed up, just do value conversion -->
+          <set_value name="$MCGSC_tmp2" exact="[($MCGSC_tmp/(ware.claytronics.averageprice + ware.hullparts.averageprice*5 + ware.energycells.averageprice*21))i, 1].max" />
+          <set_value name="$MCGSC_clpware.{ware.claytronics}" operation="add" exact="$MCGSC_tmp2" />
+          <set_value name="$MCGSC_clpware.{ware.hullparts}" operation="add" exact="$MCGSC_tmp2*5" />
+          <set_value name="$MCGSC_clpware.{ware.energycells}" operation="add" exact="$MCGSC_tmp2*21" />
+        </do_for_each>
+        <!-- return result -->
         <set_value name="$MCGSC_result" exact="[$MCGSC_genware, $MCGSC_terware, $MCGSC_clpware]" />
         <debug_text text="'==MaintainanceCost== Cost of %s %s estimated to be: original %s, general %s, terran %s, closed loop %s'.[$MCGSC_ship.idcode, $MCGSC_ship.knownname, $MCGSC_cost, $MCGSC_result.{1}, $MCGSC_result.{2}, $MCGSC_result.{3}]" filter="scripts" chance="global.$maintainancecost_debug" />
         <!-- cleanup -->
@@ -251,6 +318,7 @@
         <remove_value name="$MCGSC_builder" />
         <remove_value name="$MCGSC_cost" />
         <remove_value name="$MCGSC_tmp" />
+        <remove_value name="$MCGSC_tmp2" />
         <remove_value name="$MCGSC_genware" />
         <remove_value name="$MCGSC_terware" />
         <remove_value name="$MCGSC_clpware" />
@@ -298,6 +366,7 @@
     <!-- input: this.object
                 $maintainancecosttable
                 $locship
+         output: MCDM_result = [success, reason]
     set: $locship_MtCst_state
          $locship_MtCst_maxhp -->
     <actions name="MaintainanceCostDoMaintainance">
@@ -319,15 +388,38 @@
         </do_if>
       </do_all>
       <do_if value="$MCDM_ware2use">
-        <debug_text text="'==MaintainanceCost== Builder %s %s has enough resources %s to restore %s %s. Do maintainance now and remove used wares.'.[this.object.idcode, this.object.knownname, $MCDM_ware2use, $locship.idcode, $locship.knownname]" filter="scripts" chance="global.$maintainancecost_debug" />
+        <set_value name="$MCDM_totalcost" exact="0ct" />
         <do_for_each in="$MCDM_ware2use.keys.list" name="$w">
-          <remove_cargo object="this.object" ware="$w" exact="$MCDM_ware2use.{$w}" />
+          <set_value name="$MCDM_totalcost" operation="add" exact="2*$w.maxprice*$MCDM_ware2use.{$w}" />
         </do_for_each>
-        <signal_objects object="$locship" param="'MtCst_SetState'" param2="'set'" param3="1" />
-        <set_value name="$locship_MtCst_state" exact="1i" />
-        <set_value name="$locship_MtCst_maxhp" exact="100" />
+        <!-- disable money transfer between player assets -->
+        <do_if value="$locship.isplayerowned and this.object.isplayerowned">
+          <set_value name="$MCDM_totalcost" exact="0Cr" />
+        </do_if>
+        <do_if value="(not $locship.isplayerowned) or this.object.isplayerowned or (player.money ge $MCDM_totalcost)">
+          <debug_text text="'==MaintainanceCost== Builder %s %s has enough resources %s to restore %s %s, cost %sCr. Do maintainance now.'.[this.object.idcode, this.object.knownname, $MCDM_ware2use, $locship.idcode, $locship.knownname, $MCDM_totalcost/1Cr]" filter="scripts" chance="global.$maintainancecost_debug" />
+          <do_for_each in="$MCDM_ware2use.keys.list" name="$w">
+            <remove_cargo object="this.object" ware="$w" exact="$MCDM_ware2use.{$w}" />
+          </do_for_each>
+          <transfer_money from="$locship.trueowner" to="this.object" amount="$MCDM_totalcost" result="$MCDM_money" />
+          <signal_objects object="$locship" param="'MtCst_SetState'" param2="'set'" param3="1" />
+          <set_value name="$locship_MtCst_state" exact="1i" />
+          <set_value name="$locship_MtCst_maxhp" exact="100" />
+          <set_value name="$MCDM_result" exact="[true, abs($MCDM_money/1Cr)]" />
+          <do_if value="this.object.isplayerowned">
+            <write_to_logbook category="general" title="{90105,7008}" text="{90105,7009}.[this.object.knownname, this.object.idcode, $locship.knownname, $locship.idcode, abs($MCDM_money/1Cr)]" object="this.object" interaction="showonmap" money="abs($MCDM_money/1Cr)" />
+          </do_if>
+        </do_if>
+        <do_else>
+          <debug_text text="'==MaintainanceCost== Player does not have enough money to pay for restoring %s %s. Skip maintainance.'.[this.object.idcode, this.object.knownname, $locship.idcode, $locship.knownname]" filter="scripts" chance="global.$maintainancecost_debug" />
+          <set_value name="$MCDM_result" exact="[false, {90105,7005}]" />
+        </do_else>
+        <remove_value name="$MCDM_ware2use" />
+        <remove_value name="$MCDM_tmp" />
+        <remove_value name="$MCDM_totalcost" />
       </do_if>
       <do_else>
+        <set_value name="$MCDM_result" exact="[false, {90105,7004}]" />
         <debug_text text="'==MaintainanceCost== Builder %s %s does not have enough resources to restore %s %s. Skip maintainance.'.[this.object.idcode, this.object.knownname, $locship.idcode, $locship.knownname]" filter="scripts" chance="global.$maintainancecost_debug" />
       </do_else>
     </actions>
@@ -364,7 +456,7 @@
             <do_if value="$MCBC_luck lt $MCBC_breakchance">
               <debug_text text="'==MaintainanceCost== %s %s passed routine break check and increase maintainance state from %s'.[this.defensible.idcode, this.defensible.knownname, $MtCst_locstate]" filter="scripts" chance="global.$maintainancecost_debug" />
               <set_value name="$MtCst_locstate" operation="add" exact="1i" />
-              <signal_objects object="this.defensible" param="'MtCst_PutState'" />
+              <signal_objects object="this.defensible" param="'MtCst_PutState'" param2="true" />
               <!-- cleanup -->
               <remove_value name="$MCBC_breakchance" />
               <remove_value name="$MCBC_luck" />
@@ -468,14 +560,15 @@
       </conditions>
       <actions>
         <set_value name="$MtCst_nexthitcheck" min="player.age + 5s" max="player.age + 10s" />
-        <set_value name="$locbreakchance" exact="100*[1-0.5^($damagedpercent/100f), 0.5].min" />
+        <!-- <set_value name="$locbreakchance" exact="100*[1-0.5^($damagedpercent/100f), 0.5].min" /> -->
+        <set_value name="$locbreakchance" exact="50" />
         <set_value name="$locluck" min="0f" max="100f" />
         <debug_text text="'==MaintainanceCost== %s %s is hit with damagepercent %s, next check in %s s, breakchance %s, dice roll %s'.[this.defensible.idcode, this.defensible.knownname, $damagedpercent, $MtCst_nexthitcheck-player.age, $locbreakchance, $locluck]" filter="scripts" chance="global.$maintainancecost_debug" />
         <do_if value="$locluck lt $locbreakchance">
           <do_if value="$MtCst_locstate lt 4">
             <set_value name="$MtCst_locstate" operation="add" exact="1i" />
             <set_value name="$MtCst_nextbreakcheck" min="player.age + 10min" max="player.age + 20min" />
-            <signal_objects object="this.defensible" param="'MtCst_PutState'" />
+            <signal_objects object="this.defensible" param="'MtCst_PutState'" param2="true" />
             <debug_text text="'==MaintainanceCost== %s %s is broken by a heavy hit. Increasing state by 1 to %s.'.[this.defensible.idcode, this.defensible.knownname, $MtCst_locstate, event.param3]" filter="scripts" chance="global.$maintainancecost_debug" />
           </do_if>
           <do_else>
@@ -511,7 +604,7 @@
         <do_if value="$tmp != $MtCst_locstate and $tmp ge 1 and $tmp le 4">
           <set_value name="$MtCst_locstate" exact="$tmp" />
           <set_value name="$MtCst_nextbreakcheck" min="player.age + 10min" max="player.age + 20min" />
-          <signal_objects object="this.defensible" param="'MtCst_PutState'" />
+          <signal_objects object="this.defensible" param="'MtCst_PutState'" param2="true" />
         </do_if>
       </actions>
     </handler>
@@ -525,18 +618,78 @@
         <check_value value="@player.entity.$maintainancecost_states" />
       </conditions>
       <actions>
-        <set_value name="$oldstate" exact="[@$MtCst_locstate, @$MtCst_maxhp]" />
+        <set_value name="$oldstate" exact="[@player.entity.$maintainancecost_states.{this.defensible}.{1}, @player.entity.$maintainancecost_states.{this.defensible}.{2}]" />
         <set_value name="$MCGMH_locstate" exact="$MtCst_locstate" />
         <include_interrupt_actions ref="MaintainanceCostGetMaxHp" />
         <set_value name="$MtCst_maxhp" exact="$MCGMH_result" />
         <remove_value name="$MCGMH_result" />
         <remove_value name="$MCGMH_locstate" />
-        <set_value name="player.entity.$maintainancecost_states.{this.defensible}" exact="[$MtCst_locstate, $MtCst_maxhp]" />
+        <set_value name="player.entity.$maintainancecost_states.{this.defensible}.{1}" exact="$MtCst_locstate" />
+        <set_value name="player.entity.$maintainancecost_states.{this.defensible}.{2}" exact="$MtCst_maxhp" />
+        <!-- reevaluate cost table if necessary -->
+        <do_if value="($MtCst_locstate != $oldstate.{1}) or @event.param2">
+          <set_value name="$MCGSC_ship" exact="this.defensible" />
+          <include_interrupt_actions ref="MaintainanceCostGetShipCost" />
+          <set_value name="$MCGMC_shipcost" exact="$MCGSC_result" />
+          <remove_value name="$MCGSC_result" />
+          <remove_value name="$MCGSC_ship" />
+          <set_value name="$MCGMC_state" exact="$MtCst_locstate" />
+          <include_interrupt_actions ref="MaintainanceCostGetMaintainanceCost"/>
+          <set_value name="$MtCst_cost" exact="$MCGMC_result" />
+          <remove_value name="$MCGMC_state" />
+          <remove_value name="$MCGMC_result" />
+          <remove_value name="$MCGMC_shipcost" />
+        </do_if>
+        <set_value name="player.entity.$maintainancecost_states.{this.defensible}.{3}" exact="$MtCst_cost" />
         <add_to_group groupname="global.$maintainancecost_allships" object="this.defensible" />
         <set_value name="$locmodifier" exact="[this.defensible.combinedskill, 90].min + 10"/>
         <set_value name="$locfac" exact="0.6 + (0.4 * $locmodifier / 100)"/>
         <set_value name="$hulldamagelimit" exact="$MtCst_maxhp*$locfac" />
         <debug_text text="'==MaintainanceCost== %s %s is signalled to update maintainance state. Old state %s. New state %s'.[this.defensible.idcode, this.defensible.knownname, $oldstate, player.entity.$maintainancecost_states.{this.defensible}]" filter="scripts" chance="global.$maintainancecost_debug" />
+      </actions>
+    </handler>
+
+
+    <handler name="MaintainanceCostUpdateState">
+      <conditions>
+        <event_build_finished object="this.defensible" />
+        <check_value value="@event.param.defensible != this.defensible" />
+        <check_value value="@$MtCst_enabled" />
+        <check_value value="@$MtCst_locstate" />
+        <check_value value="@player.entity.$maintainancecost_states" />
+      </conditions>
+      <actions>
+        <signal_objects object="this.defensible" param="'MtCst_PutState'" param2="true" />
+      </actions>
+    </handler>
+
+
+    <handler name="MaintainanceCostRecondition">
+      <conditions>
+        <event_object_signalled object="this.container" param="'MtCst_ReconditionInitiate'"/>
+        <check_value value="@player.entity.$maintainancecost_states" />
+        <check_value value="@event.param2 and event.param2.isoperational and ((@event.param2.dock.container == this.container) or (@event.param2.parkedat == this.container) or @event.param2.parkedat.hascontext.{this.container})"/>
+        <check_value value="@player.entity.$maintainancecost_states.{event.param2}" />
+      </conditions>
+      <actions>
+        <set_value name="$locship" exact="event.param2"/>
+        <!-- get state from global table -->
+        <set_value name="$locship_MtCst_state" exact="player.entity.$maintainancecost_states.{$locship}.{1}" />
+        <set_value name="$locship_MtCst_maxhp" exact="player.entity.$maintainancecost_states.{$locship}.{2}" />
+        <set_value name="$maintainancecosttable" exact="player.entity.$maintainancecost_states.{$locship}.{3}" />
+        <!-- check maintainance cost -->
+        <set_value name="$MCP_success" exact="true" />
+        <set_value name="$MCP_reason" exact="null" />
+        <do_if value="$locship_MtCst_state gt 1">
+          <!-- do maintainance if possible -->
+          <include_interrupt_actions ref="MaintainanceCostDoMaintainance" />
+          <set_value name="$MCP_success" exact="$MCDM_result.{1}" />
+          <set_value name="$MCP_reason" exact="$MCDM_result.{2}" />
+          <remove_value name="$MCDM_result" />
+        </do_if>
+        <signal_objects object="$locship" param="'MtCst_ReconditionDone'" param2="$MCP_success" param3="$MCP_reason" />
+        <remove_value name="$MCP_success" />
+        <remove_value name="$MCP_reason" />
       </actions>
     </handler>
 

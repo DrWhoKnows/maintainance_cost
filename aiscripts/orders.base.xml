@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<diff>
+  <add sel="//do_if[@value=&quot;$object.isclass.ship and ($object.dock or $object.parkedat) and ($object.order.id != &apos;Undock&apos;) and ($object.order.id != &apos;TransferWorkers&apos;)&quot;]" pos="after">
+    <do_if value="$object.order.id == 'Recondition' or $object.order.id == 'FindRecondition'">
+      <remove_value name="$undock"/>
+      <remove_value name="$uselaunchtubes"/>
+    </do_if>
+  </add>
+</diff>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<language>
+  <page id="90105" title="DrWhoKnows Mod" descr="Text for all mods." voice="no">
+    <t id="7000">(*text*)</t>
+    <t id="7001">A fatal mechanical failure caused this ship to self-explode.</t>
+    <t id="7002">Recondition</t>
+    <t id="7003">Recondition the ship and repair damage.</t>
+    <t id="7004">Insufficient resources for recondition.</t>
+    <t id="7005">Insufficient funds for recondition.</t>
+    <t id="7006">Ship Recondition Complete</t>
+    <t id="7007">Ship %s \(%s\) reconditioned at %s \(%s\). Paid %sCr.</t>
+    <t id="7008">Reconditioned Ship</t>
+    <t id="7009">%s (%s) reconditioned ship %s \(%s\) and received payment %sCr.</t>
+    <t id="7010">Ship Maintainance Cost Menu</t>
+    <t id="7011">Recondition at</t>
+    <t id="7012">Recondition %s ships here.\n Estimated cost: %sCr %s</t>
+    <t id="70121">Recondition and repair %s ships here.\n Estimated cost: %sCr %s</t>
+    <t id="7013">No ship needs recondition.</t>
+    <t id="7014">Recondition and repair at</t>
+    <t id="7015">Recondition nearby</t>
+    <t id="7016">Find the nearest place to recondition %s ships.\n Estimated cost: %sCr %s</t>
+    <t id="7016">Find the nearest place to recondition and repair %s ships.\n Estimated cost: %sCr %s</t>
+    <t id="7017">Recondition and repair nearby</t>
+    <t id="7018">\(free for you\)</t>
+    <t id="7019">Recondition nearby</t>
+    <t id="7020">Search for the nearest suitable place and try to do recondition there.</t>
+    <t id="7021">Cannot find station to recondition.</t>
+    <t id="7022">Maintainance State</t>
+    <t id="7023">Ships requiring maintainance.</t>
+    <t id="7024">New</t>
+    <t id="7025">Scratched</t>
+    <t id="7026">Damaged</t>
+    <t id="7027">Junk</t>
+    <t id="7028">Unkown</t>
+    <t id="7029">Maintainance state: </t>
+    <t id="7030">Max hull integrity: </t>
+    <t id="7031">This ship might explode anytime. Need recondition urgently.</t>
+  </page>
+</language> 

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<aiscript name="order.recondition.find" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" priority="3" version="1">
+  <order id="FindRecondition" name="{90105,7019}" description="{90105,7020}" category="internal">
+    <params>
+      <param name="dorepair" text="{1041, 10098}" type="bool" default="true" comment="Repair. Should the ship also repair?"/>
+      <param name="blacklist_stations" text="{1041, 10120}" type="internal" default="[]" comment="Stations to avoid. List of stations that should not be considered for recondition."/>
+      <param name="internalorder" type="bool" default="false" advanced="true" text="{1041, 10159}" comment="Order results from an automated behavior."/>
+      <param name="debugchance" type="bool" default="0" advanced="true" text="{1041, 10086}" comment="Print debug output">
+        <input_param name="truevalue" value="100"/>
+      </param>
+    </params>
+    <requires>
+      <match shiptype="shiptype.lasertower" negate="true"/>
+      <match class="class.spacesuit" negate="true"/>
+      <match class="[class.ship_s, class.ship_m, class.ship_l, class.ship_xl]" />
+    </requires>
+  </order>
+  <!-- to do: determine if any further interrupts are needed. add here as necessary. -->
+  <interrupts>
+    <handler ref="AttackHandler"/>
+    <handler ref="MissileLockHandler" />
+    <handler ref="ScannedHandler"/>
+    <handler ref="InspectedHandler"/>
+    <handler ref="FoundAbandonedHandler"/>
+    <handler ref="TideHandler"/>
+  </interrupts>
+  <init>
+    <do_if value="not @player.entity.$maintainancecost_states.{this.ship} or player.entity.$maintainancecost_states.{this.ship}.{1} == 1">
+      <debug_text text="'==MaintainanceCost== state %s, no need of recondition. Abort.'.[@player.entity.$maintainancecost_states.{this.ship}.{1}]" chance="$debugchance"/>
+      <cancel_order order="this.assignedcontrolled.order" />
+    </do_if>
+    <set_command command="command.repair"/>
+    <include_interrupt_actions ref="GetBlacklistgroup"/>
+  </init>
+  <attention min="unknown">
+    <actions>
+
+      <!-- recondition can require a lot of resources, so even if it is possible for a carrier to recondition, we only search for stations in this automatic script -->
+      <find_station groupname="$stations2check" reachablefrom="this.assignedcontrolled" canequipclass="this.assignedcontrolled.class" canbuildfor="this.owner" hascontrolentity="controlpost.shiptrader" space="player.galaxy" knownto="if this.assignedcontrolled.isplayerowned then faction.player else null" state="componentstate.operational" multiple="true">
+        <match_relation_to object="this.assignedcontrolled" relation="enemy" comparison="not"/>
+        <match_use_blacklist group="$blacklistgroup" type="blacklisttype.sectoractivity" object="this.ship"/>
+      </find_station>
+      <!-- filter out stations unreachable considering blacklist -->
+      <do_all counter="$i" exact="$stations2check.count" reverse="true">
+        <set_value name="$locst" exact="$stations2check.{$i}" />
+        <do_if value="(this.assignedcontrolled.sector != $locst.sector) and (this.assignedcontrolled.gatedistance.{$locst}.{$blacklistgroup}.{this.assignedcontrolled} lt 0)">
+          <remove_from_group group="$stations2check" object="$locst" />
+          <continue />
+        </do_if>
+        <do_if value="$blacklist_stations.{$locst}?">
+          <remove_from_group group="$stations2check" object="$locst" />
+          <continue />
+        </do_if>
+      </do_all>
+      <!-- if none, fail this order -->
+      <do_if value="not $stations2check.count">
+        <set_order_failed order="this.order" text="{90105,7021}" />
+        <resume label="finish" />
+      </do_if>
+      <!-- sort by gatedistance, for non player prefer equipment docks (cannot build ship) to reduce pressure on warf and shipyard -->
+      <sort_group group="$stations2check" sortbyvalue="this.assignedcontrolled.gatedistance.{loop.element}.{$blacklistgroup}.{this.assignedcontrolled} + (not this.isplayerowned)*loop.element.canbuildships*2" />
+
+      <!-- evaluate current ware cost of recondition -->
+      <signal_objects object="this.assignedcontrolled" param="'MtCst_PutState'" param2="true" />
+      <set_value name="$costtable" exact="player.entity.$maintainancecost_states.{this.ship}.{3}" />
+
+      <!-- check stations within a few jumps and go to the first with enough ware -->
+      <set_value name="$dest" exact="null" />
+      <set_value name="$range" exact="[this.assignedcontrolled.combinedskill/20i,0].max" />
+      <do_all counter="$i" exact="$stations2check.count">
+        <set_value name="$locst" exact="$stations2check.{$i}" />
+        <do_if value="this.assignedcontrolled.gatedistance.{$locst}.{$blacklistgroup}.{this.assignedcontrolled} le $range">
+          <set_value name="$loccargo" exact="$locst.cargo.table" />
+          <do_for_each in="$costtable" name="$loccost" >
+            <set_value name="$sufficient" exact="true" />
+            <do_for_each in="$loccost" name="$w">
+              <do_if value="(not $loccargo.{$w}?) or ($loccargo.{$w} lt $loccost.{$w})">
+                <set_value name="$sufficient" exact="false" />
+                <break />
+              </do_if>
+            </do_for_each>
+            <do_if value="not $sufficient">
+              <continue />
+            </do_if>
+            <do_else>
+              <set_value name="$dest" exact="$locst" />
+              <break />
+            </do_else>
+          </do_for_each>
+          <do_if value="@$dest">
+            <break />
+          </do_if>
+        </do_if>
+        <do_else>
+          <break />
+        </do_else>
+      </do_all>
+      <!-- if none found, just go to the nearest one and hope it will have enough resources by the time we arrive -->
+      <do_if value="not @$dest">
+        <set_value name="$dest" exact="$stations2check.{1}" />
+      </do_if>
+
+      <label name="gorecondition" />
+      <set_order_state order="this.assignedcontrolled.order" state="orderstate.critical" />
+
+      <wait min="1ms" max="20ms" />
+
+      <create_order object="this.assignedcontrolled" id="'Recondition'" immediate="true" >
+        <param name="destination" value="$dest" />
+        <param name="dorepair" value="$dorepair" />
+        <param name="internalorder" value="true" />
+        <param name="debugchance" value="$debugchance" />
+      </create_order>
+
+      <label name="finish" />
+
+    </actions>
+  </attention>
+</aiscript>
