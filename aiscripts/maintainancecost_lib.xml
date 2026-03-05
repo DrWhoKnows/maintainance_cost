@@ -579,7 +579,11 @@
             <do_if value="@global.$maintainancecost_allships">
               <remove_from_group group="global.$maintainancecost_allships" object="this.defensible" />
             </do_if>
-            <write_to_logbook category="upkeep" title="$MCBA_logtitle" text="{90105,7001}" interaction="showlocationonmap" object="this.defensible" highlighted="true" />
+            <substitute_text text="$MCHB_logtitle" source="{1016,34}" comment="$KILLED$ was destroyed.">
+              <replace string="'$KILLED$'" with="{1016,6}.[this.defensible.name, this.defensible.idcode]" comment="%s (%s)"/>
+            </substitute_text>
+            <write_to_logbook category="upkeep" title="$MCHB_logtitle" text="{90105,7001}" interaction="showlocationonmap" object="this.defensible" highlighted="true" />
+            <remove_value name="$MCHB_logtitle" />
           </do_else>
         </do_if>
       </actions>
