@@ -31,7 +31,7 @@
     <t id="7025">Scratched</t>
     <t id="7026">Damaged</t>
     <t id="7027">Junk</t>
-    <t id="7028">Unkown</t>
+    <t id="7028">{1001,9002}</t>
     <t id="7029">Maintainance state: </t>
     <t id="7030">Max hull integrity: </t>
     <t id="7031">This ship might explode anytime. Need recondition urgently.</t>
